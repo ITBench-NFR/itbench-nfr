@@ -40,17 +40,19 @@ def load_and_print_observations(json_path):
         if observation['name'] == 'Tool Repeated Usage':
             parent_observation = observations[observation['parent_observation_id']]
             command = parent_observation['input']['calling']
-            tool_stats = repeated_tool_calls[observation['metadata']['attributes']['tool_name']]
+            tool_stats = repeated_tool_calls[observation['metadata']
+                                             ['attributes']['tool_name']]
             tool_stats[command] = tool_stats.get(command, 0) + 1
-        
+
         usage = observation.get("usage_details", {})
         if usage:
-            total_output += usage.get( "output", 0 )
-            total_reasoning += usage.get( "completion_details.reasoning", 0 )
+            total_output += usage.get("output", 0)
+            total_reasoning += usage.get("completion_details.reasoning", 0)
 
     if total_output > 0:
-            ratio = (total_reasoning / total_output) * 100
-            print(f"Planning Overhead (Reasoning/Output): {ratio:.1f}% ({total_reasoning}/{total_output})")
+        ratio = (total_reasoning / total_output) * 100
+        print(
+            f"Planning Overhead (Reasoning/Output): {ratio:.1f}% ({total_reasoning}/{total_output})")
 
     for tool_name, tool_stats in repeated_tool_calls.items():
         print(f"Tool: {tool_name}")
@@ -60,7 +62,8 @@ def load_and_print_observations(json_path):
 
     # 1. Global Latency (End-to-End)
     # Try to find the root span (usually the one with no parent or named 'crewai-index-trace')
-    root_span = next((o for o in data if not o.get("parent_observation_id")), None)
+    root_span = next(
+        (o for o in data if not o.get("parent_observation_id")), None)
     root_span_patterns = [
         r'^(Crew_[A-Za-z0-9]+(-[A-Za-z0-9]+)*\.kickoff)$',
         r'^crewai-index-trace$'
@@ -68,7 +71,8 @@ def load_and_print_observations(json_path):
     if not root_span:
         # Fallback: check for specific name
         for pattern in root_span_patterns:
-            root_span = next((o for o in data if re.fullmatch(pattern, o.get("name"))), None)
+            root_span = next(
+                (o for o in data if re.fullmatch(pattern, o.get("name"))), None)
             if root_span:
                 break
 
@@ -94,31 +98,7 @@ def load_and_print_observations(json_path):
             if isinstance(start, datetime) and isinstance(end, datetime):
                 latency_sec = (end - start).total_seconds()
 
-        print(f"{'End to End Latency':<25} {latency_sec:.2f} seconds")
-
-    # 2. Total Cost
-    print(f"{'Total Cost':<25} ${df['Total Cost ($)'].sum():.4f}")
-
-    # 3. Total LLM Calls
-    llm_calls = df[df["Model"].notna()].shape[0]
-    print(f"{'Total LLM Calls':<25} {llm_calls}")
-
-    # 4. Planning Overhead (Reasoning Ratio)
-    total_reasoning = df["Reasoning Tokens"].sum()
-    total_output = df["Output Tokens"].sum()
-    if total_output > 0:
-        ratio = (total_reasoning / total_output) * 100
-        print(
-            f"{'Planning Overhead':<25} {ratio:.1f}% ({total_reasoning}/{total_output} tokens)"
-        )
-
-    # 5. Tokens Breakdown (Average per Task)
-    print("\nTokens Breakdown:")
-
-    # Re-implement logic from kubernetes_kyverno.py:
-    # 1. Find all spans that are Tasks (have a task_id)
-    # 2. For each task span, find its children (LLM calls usually)
-    # 3. Sum/Average usage from children
+        print(f"{'End to End Latency':<25} {latency_sec:.2f} ms")
 
     task_map = {}  # map observation_id -> task_id
     for obs in data:
@@ -150,43 +130,31 @@ def load_and_print_observations(json_path):
                 if t_id not in task_usages:
                     task_usages[t_id] = []
                 task_usages[t_id].append(total)
-
+    total_usage = 0
     if task_usages:
         for task_id, usages in task_usages.items():
             if usages:
-                avg_tokens = sum(usages) / len(usages)
+                # avg_tokens = sum(usages) / len(usages)
+                total_usage += sum(usages)
                 print(
-                    f"\nAverage token usage for Task ID {task_id}: {avg_tokens:.2f} tokens"
+                    f"Total token usage for Task ID {task_id}: {sum(usages)} tokens"
                 )
             else:
-                print(f"\nAverage token usage for Task ID {task_id}: 0.00 tokens")
+                print(
+                    f"Total token usage for Task ID {task_id}: 0 tokens")
     else:
         print("No Task IDs found or no token usage associated with tasks.")
-
-    print(f"\n{'='*80}")
-    print(f"Total Observations: {len(df)}")
-    print(f"{'='*80}\n")
-
-    # 6. Tool Call Latencies
-    print("Tool Call Latencies:")
-    tool_calls = df[df["Type"] == "TOOL"]
-    for _, row in tool_calls.iterrows():
-        print(f"  {row['Name']}: {row['Latency (s)']} s")
-
-    # 7. Reasoning Token Usages
-    print("\nReasoning Token Usages:")
-    reasoning_rows = df[df["Reasoning Tokens"] > 0]
-    for _, row in reasoning_rows.iterrows():
-        print(f"  {row['Name']} - reasoning: {row['Reasoning Tokens']} tokens")
-
+    
+    print("\nTokens Breakdown:")
+    print("Total Reasoning Tokens:", total_reasoning)
+    print("Total Output Tokens:", total_output)
+    print("Total Usage:", total_usage)
+    print("Planning Overhead:", (total_reasoning / total_usage) * 100, "%")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         json_file = sys.argv[1]
     else:
-        # Default to the one generated by tracing.py in current working dir?
-        # Or in ITBench-SRE-Agent root?
-        # Let's try to look in typical places
         possible_paths = [
             "../observations_dump.json",
             "../observations_incident_1.json",
