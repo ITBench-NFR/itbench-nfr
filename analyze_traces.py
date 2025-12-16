@@ -246,6 +246,135 @@ def load_and_print_observations(json_path):
         print(f"Ultimate Token Throughput (Total Output / E2E Latency): {ultimate_throughput:.2f} tokens/sec")
     else:
         print("Unable to calculate ultimate token throughput (missing E2E latency or output tokens).")
+    
+    # Helper function to parse datetime from ISO format string or return datetime object
+    def parse_datetime(dt):
+        if dt is None:
+            return None
+        if isinstance(dt, datetime):
+            return dt
+        if isinstance(dt, str):
+            try:
+                return datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                return None
+        return None
+    
+    # Calculate performance metrics: TRTT, Processing Time, LLM Execution Time
+    print("\n--- Performance Metrics ---")
+    
+    # Sort observations by start_time for chronological processing
+    sorted_observations = []
+    for obs in data:
+        start_time = parse_datetime(obs.get("start_time"))
+        if start_time:
+            sorted_observations.append((start_time, obs))
+    
+    sorted_observations.sort(key=lambda x: x[0])
+    
+    # Track metrics
+    tool_round_trip_times = []  # TRTT: tool end_time - tool start_time
+    processing_times = []  # Time between tool end and next LLM start
+    llm_execution_times = []  # LLM end_time - LLM start_time
+    
+    # Process observations chronologically
+    for i, (start_time, obs) in enumerate(sorted_observations):
+        obs_type = obs.get("type")
+        model = obs.get("model")
+        end_time = parse_datetime(obs.get("end_time"))
+        
+        # 1. Tool Round-Trip Time (TRTT)
+        if obs_type == "TOOL" and start_time and end_time:
+            trtt_ms = (end_time - start_time).total_seconds() * 1000
+            if trtt_ms >= 0:  # Only count valid times
+                tool_round_trip_times.append(trtt_ms)
+        
+        # 2. LLM Execution Time
+        if model and start_time and end_time:
+            llm_time_ms = (end_time - start_time).total_seconds() * 1000
+            if llm_time_ms >= 0:  # Only count valid times
+                llm_execution_times.append(llm_time_ms)
+        
+        # 3. Processing Time: time between tool completion and next LLM call start
+        if obs_type == "TOOL" and end_time:
+            # Find the next LLM call after this tool
+            for j in range(i + 1, len(sorted_observations)):
+                next_start_time, next_obs = sorted_observations[j]
+                next_model = next_obs.get("model")
+                if next_model:  # Found next LLM call
+                    processing_time_ms = (next_start_time - end_time).total_seconds() * 1000
+                    if processing_time_ms >= 0:  # Only count valid times
+                        processing_times.append(processing_time_ms)
+                    break
+    
+    # Print Tool Round-Trip Time (TRTT) metrics
+    print("\n--- Tool Round-Trip Time (TRTT) ---")
+    if tool_round_trip_times:
+        avg_trtt = sum(tool_round_trip_times) / len(tool_round_trip_times)
+        min_trtt = min(tool_round_trip_times)
+        max_trtt = max(tool_round_trip_times)
+        total_trtt = sum(tool_round_trip_times)
+        print(f"Number of Tool Calls: {len(tool_round_trip_times)}")
+        print(f"Average TRTT: {avg_trtt:.2f} ms")
+        print(f"Min TRTT: {min_trtt:.2f} ms")
+        print(f"Max TRTT: {max_trtt:.2f} ms")
+        print(f"Total TRTT: {total_trtt:.2f} ms")
+        # Calculate percentiles
+        sorted_trtt = sorted(tool_round_trip_times)
+        p50 = sorted_trtt[len(sorted_trtt) // 2]
+        p95 = sorted_trtt[int(len(sorted_trtt) * 0.95)] if len(sorted_trtt) > 0 else 0
+        p99 = sorted_trtt[int(len(sorted_trtt) * 0.99)] if len(sorted_trtt) > 0 else 0
+        print(f"TRTT P50: {p50:.2f} ms")
+        print(f"TRTT P95: {p95:.2f} ms")
+        print(f"TRTT P99: {p99:.2f} ms")
+    else:
+        print("No tool calls found with valid timing data.")
+    
+    # Print Processing Time metrics
+    print("\n--- Processing Time (Tool End to Next LLM Start) ---")
+    if processing_times:
+        avg_processing = sum(processing_times) / len(processing_times)
+        min_processing = min(processing_times)
+        max_processing = max(processing_times)
+        total_processing = sum(processing_times)
+        print(f"Number of Tool-to-LLM Transitions: {len(processing_times)}")
+        print(f"Average Processing Time: {avg_processing:.2f} ms")
+        print(f"Min Processing Time: {min_processing:.2f} ms")
+        print(f"Max Processing Time: {max_processing:.2f} ms")
+        print(f"Total Processing Time: {total_processing:.2f} ms")
+        # Calculate percentiles
+        sorted_processing = sorted(processing_times)
+        p50 = sorted_processing[len(sorted_processing) // 2]
+        p95 = sorted_processing[int(len(sorted_processing) * 0.95)] if len(sorted_processing) > 0 else 0
+        p99 = sorted_processing[int(len(sorted_processing) * 0.99)] if len(sorted_processing) > 0 else 0
+        print(f"Processing Time P50: {p50:.2f} ms")
+        print(f"Processing Time P95: {p95:.2f} ms")
+        print(f"Processing Time P99: {p99:.2f} ms")
+    else:
+        print("No tool-to-LLM transitions found with valid timing data.")
+    
+    # Print LLM Execution Time metrics
+    print("\n--- LLM Execution Time ---")
+    if llm_execution_times:
+        avg_llm_time = sum(llm_execution_times) / len(llm_execution_times)
+        min_llm_time = min(llm_execution_times)
+        max_llm_time = max(llm_execution_times)
+        total_llm_time = sum(llm_execution_times)
+        print(f"Number of LLM Calls: {len(llm_execution_times)}")
+        print(f"Average LLM Execution Time: {avg_llm_time:.2f} ms")
+        print(f"Min LLM Execution Time: {min_llm_time:.2f} ms")
+        print(f"Max LLM Execution Time: {max_llm_time:.2f} ms")
+        print(f"Total LLM Execution Time: {total_llm_time:.2f} ms ({total_llm_time/1000:.2f} sec)")
+        # Calculate percentiles
+        sorted_llm = sorted(llm_execution_times)
+        p50 = sorted_llm[len(sorted_llm) // 2]
+        p95 = sorted_llm[int(len(sorted_llm) * 0.95)] if len(sorted_llm) > 0 else 0
+        p99 = sorted_llm[int(len(sorted_llm) * 0.99)] if len(sorted_llm) > 0 else 0
+        print(f"LLM Execution Time P50: {p50:.2f} ms")
+        print(f"LLM Execution Time P95: {p95:.2f} ms")
+        print(f"LLM Execution Time P99: {p99:.2f} ms")
+    else:
+        print("No LLM calls found with valid timing data.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
