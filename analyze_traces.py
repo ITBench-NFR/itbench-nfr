@@ -36,6 +36,7 @@ def load_and_print_observations(json_path):
     observations = {observation['id']: observation for observation in data}
     repeated_tool_calls = defaultdict(dict)
 
+    total_input = 0
     total_output = 0
     total_reasoning = 0
     total_llm_calls = 0
@@ -74,6 +75,7 @@ def load_and_print_observations(json_path):
 
         usage = observation.get("usage_details", {})
         if usage:
+            total_input += usage.get("input", 0)
             total_output += usage.get("output", 0)
             total_reasoning += usage.get("completion_details.reasoning", 0)
         
@@ -192,6 +194,16 @@ def load_and_print_observations(json_path):
     print("Total Output Tokens:", total_output)
     print("Planning Overhead:", (total_reasoning / total_output) * 100, "%")
     print("Total Usage:", total_usage)
+    
+    # Prompt vs Completion Ratio
+    print("\n--- Prompt vs Completion Ratio ---")
+    if total_output > 0:
+        prompt_completion_ratio = total_input / total_output
+        print(f"Total Prompt Tokens: {total_input}")
+        print(f"Total Completion Tokens: {total_output}")
+        print(f"Prompt vs Completion Ratio: {prompt_completion_ratio:.4f} (Prompt/Completion)")
+    else:
+        print("Unable to calculate Prompt vs Completion Ratio (no completion tokens found).")
     
     # Tool Reuse Rate
     print("\n--- Tool Reuse Rate ---")
