@@ -133,23 +133,17 @@ def load_and_print_observations(json_path):
     total_usage = 0
     if task_usages:
         for task_id, usages in task_usages.items():
-            if usages:
-                # avg_tokens = sum(usages) / len(usages)
-                total_usage += sum(usages)
-                print(
-                    f"Total token usage for Task ID {task_id}: {sum(usages)} tokens"
-                )
-            else:
-                print(
-                    f"Total token usage for Task ID {task_id}: 0 tokens")
+            print("\nTask ID", task_id)
+            total_usage = sum(usages) if usages else 0
+            print( f"{'Total token usage:':<25} {total_usage}\n" )
     else:
-        print("No Task IDs found or no token usage associated with tasks.")
-    
+        print("No token usage associated with tasks.")
+
     print("\nTokens Breakdown:")
     print("Total Reasoning Tokens:", total_reasoning)
     print("Total Output Tokens:", total_output)
+    print("Planning Overhead:", (total_reasoning / total_output) * 100, "%")
     print("Total Usage:", total_usage)
-    print("Planning Overhead:", (total_reasoning / total_usage) * 100, "%")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
