@@ -3,18 +3,20 @@
 
 docker run --rm -ti --name ciso-task-scenario \
     --network host \
-    -v ./dir/scene_dir:/tmp/scenario \
-    -v ./dir/agentdir:/tmp/agent \
-    -v ./dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
+    -v ../dir/scene_dir:/tmp/scenario \
+    -v ../dir/agentdir:/tmp/agent \
+    -v ../dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
     ciso-task-scenarios:latest \
     make -C 2.gen-cis-b-k8s-kubectl-opa\
     deploy_bundle
 
+mkdir -p ../ciso_traces/2.gen-cis-b-k8s-kubectl-opa
+
 docker run --rm -ti --name ciso-task-scenario \
     --network host \
-    -v ./dir/scene_dir:/tmp/scenario \
-    -v ./dir/agentdir:/tmp/agent\
-    -v ./dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
+    -v ../dir/scene_dir:/tmp/scenario \
+    -v ../dir/agentdir:/tmp/agent\
+    -v ../dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
     ciso-task-scenarios:latest \
     make -C 2.gen-cis-b-k8s-kubectl-opa\
     inject_fault
@@ -31,9 +33,9 @@ docker run --rm -ti --name ciso-task-scenario \
 
 docker run --rm -ti --name ciso-agent \
     --network host \
-    -v ./dir/agentdir:/tmp/agent \
+    -v ../dir/agentdir:/tmp/agent \
     -v ./.env:/etc/ciso-agent/.env \
-    --mount type=bind,source=./ciso_traces,target=/tmp/agent/ciso_traces \
+    --mount type=bind,source=../ciso_traces/2.gen-cis-b-k8s-kubectl-opa,target=/tmp/agent/ciso_traces \
     ciso-agent:latest \
     python src/ciso_agent/main.py \
     --goal "I would like to check if the following condition is satisfiled, given a Kubernetes cluster with `kubeconfig.yaml`
@@ -58,18 +60,18 @@ You can use '/tmp/agent' as your workdir." \
 
 docker run --rm -ti --name ciso-task-scenario \
     --network host \
-    -v ./dir/scene_dir:/tmp/scenario \
-    -v ./dir/agentdir:/tmp/agent\
-    -v ./dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
+    -v ../dir/scene_dir:/tmp/scenario \
+    -v ../dir/agentdir:/tmp/agent\
+    -v ../dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
     ciso-task-scenarios:latest \
     make -C 2.gen-cis-b-k8s-kubectl-opa \
-    evaluate > ./ciso_traces/eval_2.log
+    evaluate > ../ciso_traces/2.gen-cis-b-k8s-kubectl-opa/evaluate.log
 
 docker run --rm -ti --name ciso-task-scenario \
     --network host \
-    -v ./dir/scene_dir:/tmp/scenario \
-    -v ./dir/agentdir:/tmp/agent\
-    -v ./dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
+    -v ../dir/scene_dir:/tmp/scenario \
+    -v ../dir/agentdir:/tmp/agent\
+    -v ../dir/agentdir/kubeconfig.yaml:/etc/ciso-task-scenarios/kubeconfig.yaml \
     ciso-task-scenarios:latest \
     make -C 2.gen-cis-b-k8s-kubectl-opa \
     revert
