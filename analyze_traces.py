@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-import pandas as pd
 from collections import defaultdict
 from datetime import datetime
 import re
