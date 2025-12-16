@@ -35,6 +35,7 @@ def load_and_print_observations(json_path):
 
     total_output = 0
     total_reasoning = 0
+    total_llm_calls = 0
 
     for obs_id, observation in observations.items():
         if observation['name'] == 'Tool Repeated Usage':
@@ -48,6 +49,8 @@ def load_and_print_observations(json_path):
         if usage:
             total_output += usage.get("output", 0)
             total_reasoning += usage.get("completion_details.reasoning", 0)
+        if observation.get("model"):
+            total_llm_calls += 1
 
     if total_output > 0:
         ratio = (total_reasoning / total_output) * 100
@@ -139,6 +142,7 @@ def load_and_print_observations(json_path):
     else:
         print("No token usage associated with tasks.")
 
+    print("Total LLM Calls:", total_llm_calls)
     print("\nTokens Breakdown:")
     print("Total Reasoning Tokens:", total_reasoning)
     print("Total Output Tokens:", total_output)
@@ -150,7 +154,7 @@ if __name__ == "__main__":
         json_file = sys.argv[1]
     else:
         possible_paths = [
-            "../observations_dump.json",
+            # "../observations_dump.json",
             "../observations_incident_1.json",
         ]
         json_file = None
