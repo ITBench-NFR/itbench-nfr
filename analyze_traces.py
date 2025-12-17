@@ -51,10 +51,15 @@ def load_and_print_observations(json_path):
     per_tool_usages = defaultdict(int)
     per_tool_repeated = defaultdict(int)
 
+    # Track errors for reliability metrics
+    total_errors = 0
+    total_operations = 0  # LLM calls + tool calls
+
     for obs_id, observation in observations.items():
         # Count tool usages
         if observation.get('type') == 'TOOL':
             total_tool_usages += 1
+            total_operations += 1
             # Extract tool name from the observation
             tool_name = observation.get('name', '').replace('._use', '')
             if not tool_name:
@@ -62,6 +67,23 @@ def load_and_print_observations(json_path):
                 attributes = metadata.get('attributes', {})
                 tool_name = attributes.get('tool.name', 'Unknown')
             per_tool_usages[tool_name] += 1
+
+            # Check for tool errors
+            output = observation.get("output", {})
+            if isinstance(output, dict):
+                # Check for return_code indicating failure
+                return_code = output.get("return_code")
+                if return_code is not None and return_code != 0:
+                    total_errors += 1
+                # Check for error in stderr
+                stderr = output.get("stderr", "")
+                if stderr and len(stderr.strip()) > 0:
+                    total_errors += 1
+            elif isinstance(output, str):
+                # Check if output contains error indicators
+                output_lower = output.lower()
+                if any(keyword in output_lower for keyword in ["error", "exception", "failed", "failure"]):
+                    total_errors += 1
         
         if observation['name'] == 'Tool Repeated Usage':
             repeated_tool_usages += 1
@@ -82,6 +104,22 @@ def load_and_print_observations(json_path):
         # Check if this is an LLM call (has model field)
         if observation.get("model"):
             total_llm_calls += 1
+            total_operations += 1
+
+            # Check for LLM errors
+            status = observation.get("status")
+            level = observation.get("level")
+            if status and status.lower() in ["error", "failed", "failure"]:
+                total_errors += 1
+            elif level and level.upper() == "ERROR":
+                total_errors += 1
+            else:
+                # Check output for error indicators
+                output = observation.get("output", "")
+                if isinstance(output, str):
+                    output_lower = output.lower()
+                    if any(keyword in output_lower for keyword in ["error:", "exception:", "failed", "failure"]):
+                        total_errors += 1
             
             # Get token counts for this call
             call_input = usage.get("input", 0) if usage else 0
@@ -228,7 +266,10 @@ def load_and_print_observations(json_path):
             print(f"  {tool}: N/A")
     
     # Calculate and print reliability metrics
-    print("\n--- Reliability Metrics: Context Window Utilization ---")
+    print("\n--- Reliability Metrics ---")
+
+    # Context Window Utilization
+    print("\n--- Context Window Utilization ---")
     if context_window_utilizations:
         # Geometric mean: exp(mean(log(x))) - more robust for products
         log_sum = sum(math.log(u) for u in context_window_utilizations)
@@ -243,6 +284,26 @@ def load_and_print_observations(json_path):
     else:
         print("No LLM calls found with token usage data.")
     
+    # Error Rate
+    print("\n--- Error Rate ---")
+    if total_operations > 0:
+        error_rate = (total_errors / total_operations) * 100
+        print(f"Total Operations: {total_operations} (LLM calls + tool calls)")
+        print(f"Total Errors: {total_errors}")
+        print(f"Error Rate: {error_rate:.2f}%")
+    else:
+        print("No operations found to calculate error rate.")
+
+    # Error Rate
+    print("\n--- Error Rate ---")
+    if total_operations > 0:
+        error_rate = (total_errors / total_operations) * 100
+        print(f"Total Operations: {total_operations} (LLM calls + tool calls)")
+        print(f"Total Errors: {total_errors}")
+        print(f"Error Rate: {error_rate:.2f}%")
+    else:
+        print("No operations found to calculate error rate.")
+
     print("\n--- Token Throughput ---")
     if total_llm_latency_ms > 0 and total_output > 0:
         total_llm_time_sec = total_llm_latency_ms / 1000.0
