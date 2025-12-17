@@ -1,6 +1,6 @@
 # NFR Benchmarking for ITBench SRE and CISO Agents
 
-Basic setup: Follow instructions on (SRE)[https://github.com/ITBench-NFR/ITBench-SRE-Agent], (CISO)[https://github.com/ITBench-NFR/ITBench-CISO-CAA-Agent], and (Scenario)[https://github.com/itbench-hub/ITBench-Scenarios] setup.
+Basic setup: Follow instructions on (https://github.com/ITBench-NFR/ITBench-SRE-Agent)[SRE], (https://github.com/ITBench-NFR/ITBench-CISO-CAA-Agent)[CISO], and (https://github.com/itbench-hub/ITBench-Scenarios)[Test Scenarios] setup.
   
 ### CISO Sandbox Evaluation
 
