@@ -73,6 +73,9 @@ class TestMetrics:
     # Prefix cache
     prefix_cache_hit_rate_perc: Optional[float] = None
 
+    # Reliability metrics
+    context_window_utilization_perc: Optional[float] = None
+
 
 def _run_vllm_server(config: dict):
     """Run vLLM server using the CLI entry point."""
@@ -272,7 +275,17 @@ class PrometheusMetrics:
         if metrics["total_tokens"] and self.duration > 0:
             metrics["system_throughput"] = round(metrics["total_tokens"] / self.duration, 2)
         else:
-            metrics["system_throughput"] = None
+            metrics["tokens_per_second"] = None
+
+        # === Reliability Metrics ===
+        # Context Window Utilization: percentage of context window used
+        # Get context window size from VLLM_CONFIG
+        context_window_size = VLLM_CONFIG.get("context_window", 32768)
+        if metrics["total_tokens"] and context_window_size > 0:
+            context_window_utilization = (metrics["total_tokens"] / context_window_size) * 100
+            metrics["context_window_utilization_perc"] = round(context_window_utilization, 4)
+        else:
+            metrics["context_window_utilization_perc"] = None
 
         return metrics
     
@@ -348,6 +361,7 @@ def print_summary(m: TestMetrics):
     print(f"Avg Time/Token:\t{m.avg_inter_token_latency_seconds}s")
     print(f"Max KV Cache:\t{m.max_kv_cache_usage_perc}%")
     print(f"Prefix Cache Hit Rate:\t{m.prefix_cache_hit_rate_perc}%")
+    print(f"Context Window Utilization:\t{m.context_window_utilization_perc}%")
     print()
 
 

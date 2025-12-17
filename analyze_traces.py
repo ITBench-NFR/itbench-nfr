@@ -227,15 +227,17 @@ def load_and_print_observations(json_path):
         else:
             print(f"  {tool}: N/A")
     
-    # Calculate and print new metrics
-    print("\n--- Context Window Utilization ---")
+    # Calculate and print reliability metrics
+    print("\n--- Reliability Metrics: Context Window Utilization ---")
     if context_window_utilizations:
         # Geometric mean: exp(mean(log(x))) - more robust for products
         log_sum = sum(math.log(u) for u in context_window_utilizations)
         geometric_mean = math.exp(log_sum / len(context_window_utilizations))
         max_utilization = max(context_window_utilizations)
+        avg_utilization = sum(context_window_utilizations) / len(context_window_utilizations)
         print(f"Context Window Size: {CONTEXT_WINDOW_SIZE:,} tokens")
         print(f"Number of LLM Calls: {len(context_window_utilizations)}")
+        print(f"Context Window Utilization (Average): {avg_utilization:.6%}")
         print(f"Context Window Utilization (Geometric Mean): {geometric_mean:.6%}")
         print(f"Context Window Utilization (Max): {max_utilization:.6%}")
     else:
