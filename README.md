@@ -1,21 +1,30 @@
 # NFR Benchmarking for ITBench SRE and CISO Agents
 
-Basic setup: Follow instructions on [SRE](https://github.com/ITBench-NFR/ITBench-SRE-Agent), [CISO](https://github.com/ITBench-NFR/ITBench-CISO-CAA-Agent), and [ITBench-Scenarios](https://github.com/itbench-hub/ITBench-Scenarios) setup.
-  
-In your .env file, include the following:
+Basic setup: Follow instructions on [SRE](https://github.com/ITBench-NFR/ITBench-SRE-Agent), [CISO](https://github.com/ITBench-NFR/ITBench-CISO-CAA-Agent), and [ITBench-Scenarios](https://github.com/itbench-hub/ITBench-Scenarios) to install system dependencies, containers and instruction to run agents and scenario injections.
+
+### Prometheus setup for vLLM metric telemetry
+
+Follow [vLLM Prometheus and Grafa](https://docs.vllm.ai/en/v0.7.2/getting_started/examples/prometheus_grafana.html) setup to create a locally running instance of Prometheus to extract time-series data from vLLM.
+Upon launching the instance, prometheus will be available at port 9090, and assumes vLLM instance is available at `http://localhost:8000`
+
+### NFR evaluation
+
+1. Create a .env file in the current directory, with
+Langfuse tracing info
 ```
-# langfuse tracing info
 LANGTRACE_API_KEY = ...
 LANGFUSE_SECRET_KEY = ...
 LANGFUSE_PUBLIC_KEY = ...
 LANGFUSE_BASE_URL = ...
 ```
- When hosting via vLLM
+
+ When hosting via vLLM,
 ```
-LLM_BASE_URL="http://localhost:<PORT>/v1"
-VLLM_PROMETHEUS_URL = "http://localhost:<PROMETHEUS PORT>"
+LLM_BASE_URL="http://localhost:8000/v1"
+VLLM_PROMETHEUS_URL = "http://localhost:9090"
 OPENAI_MODEL_NAME="Qwen/Qwen2.5-14B-Instruct-AWQ"
 ```
+
 When using LLM API from Google, OpenAI, etc
 ```
 LLM_API_KEY= ...
