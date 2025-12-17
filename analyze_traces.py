@@ -50,6 +50,10 @@ def load_and_print_observations(json_path):
     # Track per-tool usages for individual reuse rates
     per_tool_usages = defaultdict(int)
     per_tool_repeated = defaultdict(int)
+    
+    # Track tool error counts for error rate calculation
+    tool_usage_success_count = 0
+    tool_usage_error_count = 0
 
     for obs_id, observation in observations.items():
         # Count tool usages
@@ -72,6 +76,12 @@ def load_and_print_observations(json_path):
             tool_stats = repeated_tool_calls[observation['metadata']
                                              ['attributes']['tool_name']]
             tool_stats[command] = tool_stats.get(command, 0) + 1
+        
+        # Count tool usage success and error for error rate calculation
+        if observation['name'] == 'Tool Usage':
+            tool_usage_success_count += 1
+        elif observation['name'] == 'Tool Usage Error':
+            tool_usage_error_count += 1
 
         usage = observation.get("usage_details", {})
         if usage:
@@ -97,17 +107,6 @@ def load_and_print_observations(json_path):
             latency_ms = observation.get("latency", 0)
             if latency_ms and latency_ms > 0:
                 total_llm_latency_ms += latency_ms
-
-    if total_output > 0:
-        ratio = (total_reasoning / total_output) * 100
-        print(
-            f"Planning Overhead (Reasoning/Output): {ratio:.1f}% ({total_reasoning}/{total_output})")
-
-    for tool_name, tool_stats in repeated_tool_calls.items():
-        print(f"Tool: {tool_name}")
-        for command, count in tool_stats.items():
-            argument = command[command.find('arguments='):]
-            print('\targuments:', argument, '\n\tcount:', count)
 
     # 1. Global Latency (End-to-End)
     # Try to find the root span (usually the one with no parent or named 'crewai-index-trace')
@@ -180,20 +179,38 @@ def load_and_print_observations(json_path):
                     task_usages[t_id] = []
                 task_usages[t_id].append(total)
     total_usage = 0
+    
+    # Token Usage per Task
+    print("\n--- Token Usage per Task ---")
     if task_usages:
         for task_id, usages in task_usages.items():
-            print("\nTask ID", task_id)
             total_usage = sum(usages) if usages else 0
-            print( f"{'Total token usage:':<25} {total_usage}\n" )
+            print(f"Task ID: {task_id}")
+            print(f"Total Token Usage: {total_usage}")
     else:
         print("No token usage associated with tasks.")
 
-    print("Total LLM Calls:", total_llm_calls)
-    print("\nTokens Breakdown:")
-    print("Total Reasoning Tokens:", total_reasoning)
-    print("Total Output Tokens:", total_output)
-    print("Planning Overhead:", (total_reasoning / total_output) * 100, "%")
-    print("Total Usage:", total_usage)
+    # LLM Calls and Token Breakdown
+    print("\n--- LLM Calls & Token Breakdown ---")
+    print(f"Total LLM Calls: {total_llm_calls}")
+    print(f"Total Reasoning Tokens: {total_reasoning}")
+    print(f"Total Output Tokens: {total_output}")
+    if total_output > 0:
+        planning_overhead = (total_reasoning / total_output) * 100
+        print(f"Planning Overhead (Reasoning/Output): {planning_overhead:.2f}% ({total_reasoning}/{total_output})")
+    else:
+        print("Planning Overhead: N/A (no output tokens)")
+    print(f"Total Usage: {total_usage}")
+    
+    # Repeated Tool Calls Detail
+    if repeated_tool_calls:
+        print("\n--- Repeated Tool Calls Detail ---")
+        for tool_name, tool_stats in repeated_tool_calls.items():
+            print(f"Tool: {tool_name}")
+            for command, count in tool_stats.items():
+                argument = command[command.find('arguments='):]
+                print(f"  Arguments: {argument}")
+                print(f"  Count: {count}")
     
     # Prompt vs Completion Ratio
     print("\n--- Prompt vs Completion Ratio ---")
@@ -226,6 +243,17 @@ def load_and_print_observations(json_path):
             print(f"  {tool}: {rate:.2f}% ({repeated}/{usages})")
         else:
             print(f"  {tool}: N/A")
+    
+    # Tool Error Rate
+    print("\n--- Tool Error Rate ---")
+    total_tool_invocations = tool_usage_success_count + tool_usage_error_count
+    print(f"Successful Tool Usages: {tool_usage_success_count}")
+    print(f"Tool Usage Errors: {tool_usage_error_count}")
+    if total_tool_invocations > 0:
+        tool_error_rate = (tool_usage_error_count / total_tool_invocations) * 100
+        print(f"Tool Error Rate: {tool_error_rate:.2f}% ({tool_usage_error_count}/{total_tool_invocations})")
+    else:
+        print("Tool Error Rate: N/A (no tool invocations)")
     
     # Calculate and print reliability metrics
     print("\n--- Reliability Metrics: Context Window Utilization ---")
