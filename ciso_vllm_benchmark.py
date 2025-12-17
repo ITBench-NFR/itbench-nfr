@@ -16,16 +16,24 @@ import requests
 import time
 import json
 import signal
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional, Any
 from dataclasses import dataclass, asdict, field
+from urllib.parse import urlparse
+from dotenv import load_dotenv  # if using .env file
+
+load_dotenv() 
+_llm_url = os.getenv("LLM_BASE_URL", "http://localhost:8000/v1")
+_parsed = urlparse(_llm_url)
 
 # Configuration
 VLLM_CONFIG = {
-    "model": "Qwen/Qwen2.5-7B-Instruct",
+    # "model": "Qwen/Qwen2.5-7B-Instruct",
+    "model": os.getenv("OPENAI_MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"),
     "host": "0.0.0.0",
-    "port": 8000,
+    "port": _parsed.port or 8000,
     "trust_remote_code": True,
     "enable_auto_tool_choice": True,
     "tool_call_parser": "hermes",
@@ -33,10 +41,10 @@ VLLM_CONFIG = {
     "context_window": 32768,
 }
 
-RESULTS_DIR = Path("../ciso_traces")
-VLLM_URL = f"http://localhost:{VLLM_CONFIG['port']}"
-PROMETHEUS_URL = "http://localhost:9090"
+VLLM_URL = f"{_parsed.scheme}://{VLLM_CONFIG['host']}:{VLLM_CONFIG['port']}"
 
+RESULTS_DIR = Path("../ciso_traces")
+PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 
 @dataclass
 class TestMetrics:
@@ -63,7 +71,7 @@ class TestMetrics:
     avg_decode_seconds: Optional[float] = None
     
     # Throughput
-    system_throughput: Optional[float] = None
+    tokens_per_second: Optional[float] = None
     
     # Gauge metrics - max values (from max_over_time())
     max_kv_cache_usage_perc: Optional[float] = None
@@ -72,9 +80,6 @@ class TestMetrics:
     
     # Prefix cache
     prefix_cache_hit_rate_perc: Optional[float] = None
-
-    # Reliability metrics
-    context_window_utilization_perc: Optional[float] = None
 
 
 def _run_vllm_server(config: dict):
@@ -177,7 +182,9 @@ class PrometheusMetrics:
         try:
             resp = requests.get(
                 f"{self.prometheus_url}/api/v1/query",
-                params={"query": query, "time": self.end_time.timestamp()},
+                params={"query": query,
+                 "time": self.end_time.timestamp()
+                 },
                 timeout=10,
             )
             data = resp.json()
@@ -272,21 +279,12 @@ class PrometheusMetrics:
             metrics["prefix_cache_hit_rate_perc"] = None
         
         # === Throughput ===
+        print(metrics)
         if metrics["total_tokens"] and self.duration > 0:
-            metrics["system_throughput"] = round(metrics["total_tokens"] / self.duration, 2)
+            metrics["tokens_per_second"] = round(metrics["total_tokens"] / self.duration, 2)
         else:
             metrics["tokens_per_second"] = None
-
-        # === Reliability Metrics ===
-        # Context Window Utilization: percentage of context window used
-        # Get context window size from VLLM_CONFIG
-        context_window_size = VLLM_CONFIG.get("context_window", 32768)
-        if metrics["total_tokens"] and context_window_size > 0:
-            context_window_utilization = (metrics["total_tokens"] / context_window_size) * 100
-            metrics["context_window_utilization_perc"] = round(context_window_utilization, 4)
-        else:
-            metrics["context_window_utilization_perc"] = None
-
+        
         return metrics
     
     @staticmethod
@@ -355,13 +353,12 @@ def print_summary(m: TestMetrics):
     print(f"Duration:\t{m.duration_seconds}s")
     print(f"Requests:\t{m.num_requests}")
     print(f"Tokens:\t{m.prompt_tokens} prompt + {m.generation_tokens} gen = {m.total_tokens}")
-    print(f"Throughput:\t{m.system_throughput} tokens/sec")
+    print(f"Throughput:\t{m.tokens_per_second} tokens/sec")
     print(f"Avg TTFT:\t{m.avg_ttft_seconds}s")
     print(f"Avg E2E Latency/request:\t{m.avg_e2e_latency_seconds}s")
     print(f"Avg Time/Token:\t{m.avg_inter_token_latency_seconds}s")
     print(f"Max KV Cache:\t{m.max_kv_cache_usage_perc}%")
     print(f"Prefix Cache Hit Rate:\t{m.prefix_cache_hit_rate_perc}%")
-    print(f"Context Window Utilization:\t{m.context_window_utilization_perc}%")
     print()
 
 
