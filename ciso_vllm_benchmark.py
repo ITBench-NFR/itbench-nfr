@@ -63,7 +63,7 @@ class TestMetrics:
     avg_decode_seconds: Optional[float] = None
     
     # Throughput
-    tokens_per_second: Optional[float] = None
+    system_throughput: Optional[float] = None
     
     # Gauge metrics - max values (from max_over_time())
     max_kv_cache_usage_perc: Optional[float] = None
@@ -270,10 +270,10 @@ class PrometheusMetrics:
         
         # === Throughput ===
         if metrics["total_tokens"] and self.duration > 0:
-            metrics["tokens_per_second"] = round(metrics["total_tokens"] / self.duration, 2)
+            metrics["system_throughput"] = round(metrics["total_tokens"] / self.duration, 2)
         else:
-            metrics["tokens_per_second"] = None
-        
+            metrics["system_throughput"] = None
+
         return metrics
     
     @staticmethod
@@ -342,7 +342,7 @@ def print_summary(m: TestMetrics):
     print(f"Duration:\t{m.duration_seconds}s")
     print(f"Requests:\t{m.num_requests}")
     print(f"Tokens:\t{m.prompt_tokens} prompt + {m.generation_tokens} gen = {m.total_tokens}")
-    print(f"Throughput:\t{m.tokens_per_second} tokens/sec")
+    print(f"Throughput:\t{m.system_throughput} tokens/sec")
     print(f"Avg TTFT:\t{m.avg_ttft_seconds}s")
     print(f"Avg E2E Latency/request:\t{m.avg_e2e_latency_seconds}s")
     print(f"Avg Time/Token:\t{m.avg_inter_token_latency_seconds}s")
