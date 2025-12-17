@@ -366,8 +366,8 @@ def main():
     """Main entry point."""
     tests = {
         "1": "1.gen-cis-b-k8s-kyverno",
-        # "2": "2.gen-cis-b-k8s-kubectl-opa",
-        # "4": "4.upd-cis-b-k8s-kyverno",
+        "2": "2.gen-cis-b-k8s-kubectl-opa",
+        "4": "4.upd-cis-b-k8s-kyverno",
     }
     
     def cleanup(signum, frame):
