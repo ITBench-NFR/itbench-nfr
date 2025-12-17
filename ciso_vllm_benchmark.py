@@ -58,7 +58,7 @@ class TestMetrics:
     # Latency metrics - averages (from rate(sum)/rate(count))
     avg_ttft_seconds: Optional[float] = None
     avg_e2e_latency_seconds: Optional[float] = None
-    avg_tpot_seconds: Optional[float] = None
+    avg_inter_token_latency_seconds: Optional[float] = None
     avg_prefill_seconds: Optional[float] = None
     avg_decode_seconds: Optional[float] = None
     
@@ -233,7 +233,7 @@ class PrometheusMetrics:
         metrics["avg_e2e_latency_seconds"] = self._query_instant(
             f"rate(vllm:e2e_request_latency_seconds_sum[{d}s]) / rate(vllm:e2e_request_latency_seconds_count[{d}s])"
         )
-        metrics["avg_tpot_seconds"] = self._query_instant(
+        metrics["avg_inter_token_latency_seconds"] = self._query_instant(
             f"rate(vllm:inter_token_latency_seconds_sum[{d}s]) / rate(vllm:inter_token_latency_seconds_count[{d}s])"
         )
         metrics["avg_prefill_seconds"] = self._query_instant(
@@ -244,7 +244,7 @@ class PrometheusMetrics:
         )
         
         # Round latencies
-        for key in ["avg_ttft_seconds", "avg_e2e_latency_seconds", "avg_tpot_seconds", 
+        for key in ["avg_ttft_seconds", "avg_e2e_latency_seconds", "avg_inter_token_latency_seconds", 
                     "avg_prefill_seconds", "avg_decode_seconds"]:
             if metrics[key] is not None:
                 metrics[key] = round(metrics[key], 6)
@@ -345,7 +345,7 @@ def print_summary(m: TestMetrics):
     print(f"Throughput:\t{m.tokens_per_second} tokens/sec")
     print(f"Avg TTFT:\t{m.avg_ttft_seconds}s")
     print(f"Avg E2E Latency/request:\t{m.avg_e2e_latency_seconds}s")
-    print(f"Avg Time/Token:\t{m.avg_tpot_seconds}s")
+    print(f"Avg Time/Token:\t{m.avg_inter_token_latency_seconds}s")
     print(f"Max KV Cache:\t{m.max_kv_cache_usage_perc}%")
     print(f"Prefix Cache Hit Rate:\t{m.prefix_cache_hit_rate_perc}%")
     print()
