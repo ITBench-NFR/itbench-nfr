@@ -10,7 +10,7 @@ import re
 CONTEXT_WINDOW_SIZE = 1000000
 
 
-def load_and_print_observations(json_path):
+def load_and_print_observations(json_path, output_json_path=None):
     """
     Loads observations from a JSON file and prints them in a readable format using pandas.
     """
@@ -35,6 +35,8 @@ def load_and_print_observations(json_path):
 
     observations = {observation['id']: observation for observation in data}
     repeated_tool_calls = defaultdict(dict)
+    
+    metrics = {}
 
     total_input = 0
     total_output = 0
@@ -147,6 +149,7 @@ def load_and_print_observations(json_path):
                 latency_sec = (end - start).total_seconds()
 
         print(f"{'End to End Latency':<25} {latency_sec:.2f} ms")
+        metrics['end_to_end_latency_ms'] = latency_sec
 
     task_map = {}  # map observation_id -> task_id
     for obs in data:
@@ -182,11 +185,13 @@ def load_and_print_observations(json_path):
     
     # Token Usage per Task
     print("\n--- Token Usage per Task ---")
+    metrics['token_usage_per_task'] = {}
     if task_usages:
         for task_id, usages in task_usages.items():
             total_usage = sum(usages) if usages else 0
             print(f"Task ID: {task_id}")
             print(f"Total Token Usage: {total_usage}")
+            metrics['token_usage_per_task'][task_id] = total_usage
     else:
         print("No token usage associated with tasks.")
 
@@ -195,18 +200,28 @@ def load_and_print_observations(json_path):
     print(f"Total LLM Calls: {total_llm_calls}")
     print(f"Total Reasoning Tokens: {total_reasoning}")
     print(f"Total Output Tokens: {total_output}")
+    metrics['llm_stats'] = {
+        'total_calls': total_llm_calls,
+        'total_reasoning_tokens': total_reasoning,
+        'total_output_tokens': total_output,
+        'total_usage': total_usage
+    }
     if total_output > 0:
         planning_overhead = (total_reasoning / total_output) * 100
         print(f"Planning Overhead (Reasoning/Output): {planning_overhead:.2f}% ({total_reasoning}/{total_output})")
+        metrics['llm_stats']['planning_overhead_percent'] = planning_overhead
     else:
         print("Planning Overhead: N/A (no output tokens)")
+        metrics['llm_stats']['planning_overhead_percent'] = None
     print(f"Total Usage: {total_usage}")
     
     # Repeated Tool Calls Detail
+    metrics['repeated_tool_calls'] = {}
     if repeated_tool_calls:
         print("\n--- Repeated Tool Calls Detail ---")
         for tool_name, tool_stats in repeated_tool_calls.items():
             print(f"Tool: {tool_name}")
+            metrics['repeated_tool_calls'][tool_name] = tool_stats
             for command, count in tool_stats.items():
                 argument = command[command.find('arguments='):]
                 print(f"  Arguments: {argument}")
@@ -219,21 +234,32 @@ def load_and_print_observations(json_path):
         print(f"Total Prompt Tokens: {total_input}")
         print(f"Total Completion Tokens: {total_output}")
         print(f"Prompt vs Completion Ratio: {prompt_completion_ratio:.4f} (Prompt/Completion)")
+        metrics['prompt_completion_ratio'] = prompt_completion_ratio
     else:
         print("Unable to calculate Prompt vs Completion Ratio (no completion tokens found).")
+        metrics['prompt_completion_ratio'] = None
     
     # Tool Reuse Rate
     print("\n--- Tool Reuse Rate ---")
     print(f"Total Tool Usages: {total_tool_usages}")
     print(f"Repeated Tool Usages: {repeated_tool_usages}")
+    
+    metrics['tool_reuse_rate'] = {
+        'total_usages': total_tool_usages,
+        'repeated_usages': repeated_tool_usages
+    }
+
     if total_tool_usages > 0:
         reuse_rate = (repeated_tool_usages / total_tool_usages) * 100
         print(f"Overall Tool Reuse Rate: {reuse_rate:.2f}%")
+        metrics['tool_reuse_rate']['overall_rate_percent'] = reuse_rate
     else:
         print("Overall Tool Reuse Rate: N/A (no tool usages)")
+        metrics['tool_reuse_rate']['overall_rate_percent'] = None
     
     # Per-tool reuse rates
     print("\nPer-Tool Reuse Rates:")
+    metrics['tool_reuse_rate']['per_tool'] = {}
     all_tools = set(per_tool_usages.keys())
     for tool in sorted(all_tools):
         usages = per_tool_usages[tool]
@@ -241,22 +267,33 @@ def load_and_print_observations(json_path):
         if usages > 0:
             rate = (repeated / usages) * 100
             print(f"  {tool}: {rate:.2f}% ({repeated}/{usages})")
+            metrics['tool_reuse_rate']['per_tool'][tool] = rate
         else:
             print(f"  {tool}: N/A")
+            metrics['tool_reuse_rate']['per_tool'][tool] = None
     
     # Tool Error Rate
     print("\n--- Tool Error Rate ---")
     total_tool_invocations = tool_usage_success_count + tool_usage_error_count
     print(f"Successful Tool Usages: {tool_usage_success_count}")
     print(f"Tool Usage Errors: {tool_usage_error_count}")
+    
+    metrics['tool_error_rate'] = {
+        'successful': tool_usage_success_count,
+        'errors': tool_usage_error_count
+    }
+    
     if total_tool_invocations > 0:
         tool_error_rate = (tool_usage_error_count / total_tool_invocations) * 100
         print(f"Tool Error Rate: {tool_error_rate:.2f}% ({tool_usage_error_count}/{total_tool_invocations})")
+        metrics['tool_error_rate']['rate_percent'] = tool_error_rate
     else:
         print("Tool Error Rate: N/A (no tool invocations)")
+        metrics['tool_error_rate']['rate_percent'] = None
     
     # Calculate and print reliability metrics
     print("\n--- Reliability Metrics: Context Window Utilization ---")
+    metrics['context_window_utilization'] = {}
     if context_window_utilizations:
         # Geometric mean: exp(mean(log(x))) - more robust for products
         log_sum = sum(math.log(u) for u in context_window_utilizations)
@@ -268,17 +305,25 @@ def load_and_print_observations(json_path):
         print(f"Context Window Utilization (Average): {avg_utilization:.6%}")
         print(f"Context Window Utilization (Geometric Mean): {geometric_mean:.6%}")
         print(f"Context Window Utilization (Max): {max_utilization:.6%}")
+        metrics['context_window_utilization'] = {
+            'average': avg_utilization,
+            'geometric_mean': geometric_mean,
+            'max': max_utilization
+        }
     else:
         print("No LLM calls found with token usage data.")
     
     print("\n--- Token Throughput ---")
+    metrics['throughput'] = {}
     if total_llm_latency_ms > 0 and total_output > 0:
         total_llm_time_sec = total_llm_latency_ms / 1000.0
         avg_throughput = total_output / total_llm_time_sec
         print(f"Total LLM Time: {total_llm_time_sec:.2f} sec")
         print(f"Average Per-Call Token Throughput: {avg_throughput:.2f} tokens/sec")
+        metrics['throughput']['average_per_call_tokens_per_sec'] = avg_throughput
     else:
         print("No throughput data available.")
+        metrics['throughput']['average_per_call_tokens_per_sec'] = None
     
     # Ultimate token throughput: total output tokens / end-to-end latency
     if root_span and latency_sec and latency_sec > 0 and total_output > 0:
@@ -286,8 +331,10 @@ def load_and_print_observations(json_path):
         e2e_latency_sec = latency_sec / 1000.0
         ultimate_throughput = total_output / e2e_latency_sec
         print(f"Ultimate Token Throughput (Total Output / E2E Latency): {ultimate_throughput:.2f} tokens/sec")
+        metrics['throughput']['ultimate_tokens_per_sec'] = ultimate_throughput
     else:
         print("Unable to calculate ultimate token throughput (missing E2E latency or output tokens).")
+        metrics['throughput']['ultimate_tokens_per_sec'] = None
     
     # Helper function to parse datetime from ISO format string or return datetime object
     def parse_datetime(dt):
@@ -351,6 +398,7 @@ def load_and_print_observations(json_path):
     
     # Print Tool Round-Trip Time (TRTT) metrics
     print("\n--- Tool Round-Trip Time (TRTT) ---")
+    metrics['trtt_stats'] = {}
     if tool_round_trip_times:
         avg_trtt = sum(tool_round_trip_times) / len(tool_round_trip_times)
         min_trtt = min(tool_round_trip_times)
@@ -369,11 +417,21 @@ def load_and_print_observations(json_path):
         print(f"TRTT P50: {p50:.2f} ms")
         print(f"TRTT P95: {p95:.2f} ms")
         print(f"TRTT P99: {p99:.2f} ms")
+        metrics['trtt_stats'] = {
+            'avg': avg_trtt,
+            'min': min_trtt,
+            'max': max_trtt,
+            'total': total_trtt,
+            'p50': p50,
+            'p95': p95,
+            'p99': p99
+        }
     else:
         print("No tool calls found with valid timing data.")
     
     # Print Processing Time metrics
     print("\n--- Processing Time (Tool End to Next LLM Start) ---")
+    metrics['processing_stats'] = {}
     if processing_times:
         avg_processing = sum(processing_times) / len(processing_times)
         min_processing = min(processing_times)
@@ -392,11 +450,21 @@ def load_and_print_observations(json_path):
         print(f"Processing Time P50: {p50:.2f} ms")
         print(f"Processing Time P95: {p95:.2f} ms")
         print(f"Processing Time P99: {p99:.2f} ms")
+        metrics['processing_stats'] = {
+            'avg': avg_processing,
+            'min': min_processing,
+            'max': max_processing,
+            'total': total_processing,
+            'p50': p50,
+            'p95': p95,
+            'p99': p99
+        }
     else:
         print("No tool-to-LLM transitions found with valid timing data.")
     
     # Print LLM Execution Time metrics
     print("\n--- LLM Execution Time ---")
+    metrics['llm_execution_stats'] = {}
     if llm_execution_times:
         avg_llm_time = sum(llm_execution_times) / len(llm_execution_times)
         min_llm_time = min(llm_execution_times)
@@ -415,12 +483,33 @@ def load_and_print_observations(json_path):
         print(f"LLM Execution Time P50: {p50:.2f} ms")
         print(f"LLM Execution Time P95: {p95:.2f} ms")
         print(f"LLM Execution Time P99: {p99:.2f} ms")
+        metrics['llm_execution_stats'] = {
+            'avg': avg_llm_time,
+            'min': min_llm_time,
+            'max': max_llm_time,
+            'total': total_llm_time,
+            'p50': p50,
+            'p95': p95,
+            'p99': p99
+        }
     else:
         print("No LLM calls found with valid timing data.")
+    
+    if output_json_path:
+        print(f"\nExporting metrics to {output_json_path}...")
+        try:
+            with open(output_json_path, 'w') as f:
+                json.dump(metrics, f, indent=4)
+            print("Export successful.")
+        except Exception as e:
+            print(f"Error exporting metrics to JSON: {e}")
 
 if __name__ == "__main__":
+    output_json_file = None
     if len(sys.argv) > 1:
         json_file = sys.argv[1]
+        if len(sys.argv) > 2:
+            output_json_file = sys.argv[2]
     else:
         possible_paths = [
             # "../observations_dump.json",
@@ -433,11 +522,11 @@ if __name__ == "__main__":
                 break
 
         if not json_file:
-            print("Usage: python analyze_traces.py <path_to_observations_dump.json>")
+            print("Usage: python analyze_traces.py <path_to_observations_dump.json> [output_metrics.json]")
             print(
                 "Could not find default 'observations_dump.json' in common locations."
             )
             sys.exit(1)
 
-    load_and_print_observations(json_file)
+    load_and_print_observations(json_file, output_json_file)
 
