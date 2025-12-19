@@ -14,10 +14,36 @@ AI agents are increasingly being deployed in IT automation domains such as SRE, 
 
 ---
 
-## 2. Model Description
-Summarize the model architecture(s) used (e.g., ResNet-18, Transformer). Include:
-- Framework (e.g., PyTorch, TensorFlow)
-- Any custom layers or changes to standard models
+## 2. Description
+The itbench-hub repositories implement two specialized AI agents designed for IT automation: the SRE Agent and the CISO Agent.
+
+### SRE Agent
+Repository: [ITBench-NFR/ITBench-SRE-Agent](https://github.com/ITBench-NFR/ITBench-SRE-Agent)
+
+SRE Agent automates incident response in Kubernetes and OpenShift environments. It is designed to diagnose complex system failures, trace root causes, and implement remediation strategies for real-world incidents (e.g., high error rates, service degradation).
+
+Architecture:
+
+1. Framework: Built on CrewAI, enabling a multi-agent orchestration approach.
+2. Integration: Connects directly to observability stacks like Prometheus, Jaeger, and Clickhouse to gather logs, metrics, and traces.
+3. Execution: Runs in a containerized environment (Docker) to ensure safety and prevent harmful commands from affecting the host system.
+4. Tracing: We inject langfuse stubs to extract traces for NFR evaluation
+
+LLM Support: Compatible with WatsonX, Azure OpenAI, and OpenAI models.
+
+### CISO Agents
+Repository: [ITBench-NFR/ITBench-CISO-CAA-Agent](https://github.com/ITBench-NFR/ITBench-CISO-CAA-Agent)
+
+CISO Agents automate Compliance Assessment (CAA). It translates natural language goals into technical policies (e.g., Kyverno, OPA Rego), deploys them to clusters, collects evidence, and verifies compliance posture. It can also integrate with GitOps workflows.
+
+Architecture:
+
+1. Framework: Built using a combination of CrewAI and LangGraph for agent orchestration and state management.
+2. Workflow: Takes a natural language "goal text" and a workspace (kubeconfig/inventory) as input to autonomously generate and apply policies.
+3. Execution: Containerized (Docker/Podman) for portable and isolated execution.
+4. Tracing: We inject langfuse stubs to extract traces for NFR evaluation
+
+LLM Support: Works with any OpenAI-compatible LLM service (tested with WatsonX, OpenAI, Azure). Support was added for Google Gemini and locally hosted vLLM models for this work.
 
 ---
 
@@ -25,7 +51,7 @@ Summarize the model architecture(s) used (e.g., ResNet-18, Transformer). Include
 
 ### A. Requirements
 
-1. Basic setup: Follow instructions on [SRE](https://github.com/ITBench-NFR/ITBench-SRE-Agent), [CISO](https://github.com/ITBench-NFR/ITBench-CISO-CAA-Agent), and [ITBench-Scenarios](https://github.com/itbench-hub/ITBench-Scenarios) to install system dependencies, containers and instruction to run agents and scenario injections. 
+1. Basic setup: Follow instructions on [ITBench-NFR/ITBench-SRE-Agent](https://github.com/ITBench-NFR/ITBench-SRE-Agent), [ITBench-NFR/ITBench-CISO-CAA-Agent](https://github.com/ITBench-NFR/ITBench-CISO-CAA-Agent), and [itbench-hub/ITBench-Scenarios](https://github.com/itbench-hub/ITBench-Scenarios) to install system dependencies, containers and instruction to run agents and scenario injections. 
 
     NOTE: These repositories are forks from [ITBench](https://github.com/itbench-hub). Ensure installation of our modified versions [ITBench-NFR](https://github.com/ITBench-NFR) linked above.
 
