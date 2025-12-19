@@ -102,7 +102,10 @@ Langfuse traces are directed to `../ciso_traces/<scenario_name>/observations_dum
 #### 2. CISO Sandbox Evaluation on Remote LLM
 Run each scenario via `bash ciso_scripts/scripts_{scenario_id}.sh`. Langfuse traces are directed to `../ciso_traces/<scenario_name>/observations_dump.json` for the executed scenario.
 
-#### 3. NFR evaluation for CISO
+#### 3. CISO Sandbox Evaluation for Streaming APIs
+Run each scenario via `bash ciso_scripts/scripts_{scenario_id}_streaming.sh`. Langfuse traces are directed to `../ciso_traces/<scenario_name>_streaming/observations_dump.json` for the executed scenario and the streaming metrics are directed to `../streaming_metrics.json`.
+
+#### 4. NFR evaluation for CISO
 Run `bash ciso_analyze_all_traces.sh` to process all exported traces in `../ciso_traces`. NFRs are obtained in `../ciso_traces/<scenario_name>/analysis.json`.
 
 ### SRE Evaluation
