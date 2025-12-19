@@ -1,13 +1,12 @@
-# HPML Project: [Project Title]
+# Non-Functional Requirements (NFR) Benchmarking for IT Automation Agents
 
-## Team Information
-- **Team Name**: [Team Name]
-- **Members**:
-  - Arjun Vaidya
-  - Ayush Bhauwala
-  - Gautam Agarwal
-  - Rishabh Jain
-  - Tanmay Agrawal
+
+**Members**:
+  - Arjun Vaidya (av3315@columbia.edu)
+  - Ayush Bhauwala (ab6106@columbia.edu)
+  - Gautam Agarwal (ga2726@columbia.edu)
+  - Rishabh Jain (rj2790@columbia.edu)
+  - Tanmay Agrawal (ta2832@columbia.edu)
 ---
 
 ## 1. Problem Statement
@@ -69,6 +68,7 @@ View training and evaluation metrics here: Wandb Dashboard Link
 
 ### B. Benchmarking Agents
 
+### CISO
 #### 1. CISO Sandbox Evaluation on locally hosted vLLM
 `ciso_vllm_benchmark.py` contains scripts for running end-to-end sandbox evaluation of CISO agents on a locally hosted vLLM instance.
 Langfuse traces are directed to `../ciso_traces/<scenario_name>/observations_dump.json`, and vllm metrics are exported to `../ciso_traces/<scenario_name>/vllm_metrics_<timestamp>.json` for each scenario.
@@ -76,7 +76,10 @@ Langfuse traces are directed to `../ciso_traces/<scenario_name>/observations_dum
 #### 2. CISO Sandbox Evaluation on Remote LLM
 Run each scenario via `bash ciso_scripts/scripts_{scenario_id}.sh`. Langfuse traces are directed to `../ciso_traces/<scenario_name>/observations_dump.json` for the executed scenario.
 
-#### 3. SRE Evaluation
+#### 3. NFR evaluation for CISO
+Run `bash ciso_analyze_all_traces.sh` to process all exported traces in `../ciso_traces`. NFRs are obtained in `../ciso_traces/<scenario_name>/analysis.json`.
+
+### SRE Evaluation
 1. Place .env file in `ITBench-SRE-Agent`.
 2. To evaluate SRE on all scenarios from [ITBench-Scenarios](https://github.com/itbench-hub/ITBench-Scenarios), run `python sre_benchmark_runner.py`
 Results are stored in `../benchmark_results`.
