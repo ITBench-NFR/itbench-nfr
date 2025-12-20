@@ -189,7 +189,11 @@ View training and evaluation metrics here: Wandb Dashboard Link
 
 --- -->
 
-### B. Benchmarking Agents
+### B. Wandb Dashboard
+
+Not applicable to this project.
+
+### C. Benchmarking Agents
 
 ### CISO
 #### 1. CISO Sandbox Evaluation on locally hosted vLLM
